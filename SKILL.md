@@ -14,6 +14,8 @@ The skill is conversational and approval-driven. Ask for the product-page URL fi
 ## Default configuration
 
 - Source: the website URL supplied by the user.
+- Persistent scrape output: repository file `product-scrape.json` on the default branch (`main`).
+- GitHub persistence: after extraction and validation, show the complete proposed JSON change and ask the user to confirm before committing it. A request to scrape alone is not permission to commit a repository change.
 - Workflow: page analysis → product identification → color/variant detection → image URL extraction → validation → results preview.
 - Supabase integration: optional, never required to complete extraction.
 - Default destination table: `products_duplicate`.
@@ -86,9 +88,21 @@ Check that each URL is syntactically valid and points to an image resource when 
 
 Deduplicate identical URLs where appropriate. Flag missing images, duplicate mappings, inaccessible resources, and uncertain color associations. Show a preview table before offering Supabase integration.
 
-### Stage 6 — Optional Supabase integration
+### Stage 6 — Save results to GitHub
 
-Only offer this stage after presenting extraction results. If the user declines, finish by returning the results in a copyable table or structured JSON.
+Saving validated scrape results to `product-scrape.json` is the default persistence destination, separate from optional Supabase integration.
+
+1. After extraction, validation, and preview, prepare an updated `product-scrape.json` using the repository's existing schema.
+2. Read the current file from `appletheexchangetrx/apple-image` before editing it. Never assume it is empty or overwrite existing records blindly.
+3. Match an existing scrape record using the canonical product page URL plus variant ID. Update the matching record only when the new scrape clearly refers to the same product/variant; otherwise append a new record.
+4. Preserve unrelated products, variants, metadata, and user edits already in the file. Do not delete historical records unless separately requested and approved.
+5. Show a concise change preview (new records, updated records, unchanged records, and any conflicts), then ask the user to confirm the GitHub commit.
+6. Commit the confirmed JSON change to the default branch. Report the commit result and link to the file only after GitHub confirms success.
+7. If the user declines, do not commit; provide the result in the conversation as a table or JSON.
+
+### Stage 7 — Optional Supabase integration
+
+Offer this stage after the scrape result is available; it is independent of saving to GitHub. If the user declines Supabase, keep the GitHub JSON result and finish.
 
 If the user accepts:
 1. Confirm that the Supabase connector is connected and inspect the actual schema for `products` and `products_duplicate`. Never assume table columns, data types, constraints, or permissions.
@@ -110,6 +124,16 @@ If the connector is unavailable, do not pretend the database was updated. Return
 - Keep extraction separate from database mutation.
 - Ask for clarification when multiple products, colors, or variant mappings are ambiguous.
 - Preserve source URLs and evidence so results can be audited.
+
+## `product-scrape.json` data format
+
+Use valid UTF-8 JSON with this top-level structure:
+
+- `schema_version`: string, initially `1.0`.
+- `updated_at`: ISO 8601 timestamp for the latest successful save.
+- `products`: array of product scrape records.
+
+Each product record should include `source_url`, `source_domain`, `product_title`, `brand` when found, `product_type` when found, `scraped_at`, and `variants`. Each variant should include `color_name`, `variant_id`, `image_urls` (array), `validation_status`, and `evidence` describing the observed page element or data source. Use `null` for unknown scalar values and an empty array for no verified image URLs. Do not invent values. Preserve any additional existing fields when updating the file.
 
 ## Output format
 
