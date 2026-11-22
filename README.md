@@ -5,6 +5,7 @@ A conversational, approval-driven skill for extracting product color variants, v
 ## Contents
 
 - `SKILL.md` — primary skill instructions and workflow.
+- `product-scrape.json` — persistent JSON store for validated product scrape results.
 
 ## Default workflow
 
@@ -12,11 +13,16 @@ A conversational, approval-driven skill for extracting product color variants, v
 2. Skill analyzes the page and reports the detected product, color options, variant IDs, and media structure.
 3. Skill recommends the next stage and waits for approval.
 4. Skill extracts and validates image URLs per color.
-5. Skill previews results.
-6. Optionally, with explicit approval, it compares and writes data to Supabase:
+5. Skill previews results and prepares an update to `product-scrape.json`.
+6. After explicit confirmation, Skill commits the JSON update to this GitHub repository, preserving existing records.
+7. Optionally, with separate explicit approval, it compares and writes data to Supabase:
    - Destination: `products_duplicate`
    - Comparison/source: `products`
    - Default matching key: `variants_id` (verified against the live schema before use)
+
+## JSON output
+
+`product-scrape.json` uses schema version `1.0` and stores product-level metadata plus per-color variant IDs, image URL arrays, validation status, and extraction evidence. Existing records are preserved; records are matched by canonical product URL and variant ID before updating.
 
 ## Important
 
